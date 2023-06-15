@@ -208,7 +208,7 @@ def construct_well_level_df(input_file, plate_dims=[16, 24],
         warnings.warn(
             'Experimental design does not have positive_controls')
     # num_outer_wells = get_boundary_cell_count(plate_dims, exclude_outer)
-    num_wells_per_cell_line = wells_per_cell_line(cell_lines, exclude_outer)
+    num_wells_per_cell_line = wells_per_cell_line(cell_lines, exclude_outer, plate_dims)
     # num_available_wells = (plate_dims[0] * plate_dims[1]) - num_outer_wells
     num_treatment_wells = len(doses)
     # if num_available_wells < num_treatment_wells:
@@ -250,7 +250,7 @@ def add_negative_control(df, control_name='DMSO',
     num_treatment_wells = len(df)
     # num_outer_wells = get_boundary_cell_count(plate_dims, exclude_outer)
     # num_available_wells = (plate_dims[0] * plate_dims[1]) - num_outer_wells
-    num_wells_per_cell_line = wells_per_cell_line(cell_lines, exclude_outer)
+    num_wells_per_cell_line = wells_per_cell_line(cell_lines, exclude_outer, plate_dims)
     num_nc_wells = num_wells_per_cell_line - num_treatment_wells
     if num_nc_wells < 8:
         print("")
@@ -374,12 +374,16 @@ def randomize_wells(df_plate,
             dfw = pd.DataFrame()            
         else:
             dfw = construct_well_level_df(well_input_file,
+                                          plate_dims=plate_dims,
                                           cell_lines=cell_lines,
                                           exclude_outer=exclude_outer)
-            dfw = add_negative_control(dfw, cell_lines=cell_lines,
+            dfw = add_negative_control(dfw,
+                                       plate_dims=plate_dims,
+                                       cell_lines=cell_lines,
                                        exclude_outer=exclude_outer)
         df = randomize_per_line(dfw, randomization_num,
-                                exclude_outer, cell_lines)
+                                exclude_outer, cell_lines,
+                               plate_dims=plate_dims)
         if 'fingerprint' in df_plate:
             fd = df_plate.loc[plate_num, 'fingerprint']
             df_fp = assign_fingerprint_wells(fd,
@@ -417,7 +421,7 @@ def randomize_wells(df_plate,
     return dfr
 
 
-def wells_per_cell_line(cell_lines, exclude_outer):
+def wells_per_cell_line(cell_lines, exclude_outer=2, plate_dims=[16,24]):
     """Computes number of wells available per cell line
     
     Parameters
@@ -426,6 +430,7 @@ def wells_per_cell_line(cell_lines, exclude_outer):
         list of cell lines on a plate
     exclude_outer : int
         number of outer well layers to exclude
+    plate_dims : list of int
 
     Returns
     -------
@@ -433,10 +438,11 @@ def wells_per_cell_line(cell_lines, exclude_outer):
         number of wells available per cell line
     """
     if len(cell_lines) <= 1:
-        avail_wells = len(define_treatment_wells(exclude_outer=exclude_outer))
+        avail_wells = len(define_treatment_wells(exclude_outer=exclude_outer,plate_dims=plate_dims))
         avail_wells_per_line = avail_wells
     if len(cell_lines) > 1:
-        avail_wells = len(define_treatment_wells(exclude_outer=2))
+        #avail_wells = len(define_treatment_wells(exclude_outer=2,plate_dims=plate_dims))
+        avail_wells = len(define_treatment_wells(exclude_outer=exclude_outer,plate_dims=plate_dims))
         avail_wells_per_line = avail_wells / len(cell_lines)
     return int(avail_wells_per_line)
 
@@ -486,7 +492,7 @@ def randomize_per_line(df, rand_num, exclude_outer,
     """
     if len(cell_lines) > 1:
         exclude_outer = 2
-    avail_wells_per_line = wells_per_cell_line(cell_lines, exclude_outer)
+    avail_wells_per_line = wells_per_cell_line(cell_lines, exclude_outer, plate_dims)
     tr_wells = define_treatment_wells(exclude_outer, plate_dims)
     tr_wells_per_cell_line = chunks(tr_wells, avail_wells_per_line)
     dfrs = []
